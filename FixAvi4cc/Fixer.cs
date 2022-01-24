@@ -135,13 +135,7 @@ namespace FixAvi4cc
             if (_filePaths?.Any() != true)
             {
                 LogLine("Found no .avi files to process");
-
-                if (!_noQuestion)
-                {
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey();
-                }
-
+                
                 return false;
             }
 
