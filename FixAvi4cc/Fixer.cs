@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace FixAvi4cc
@@ -31,10 +30,11 @@ namespace FixAvi4cc
         private bool _skipReadOnly;
         private bool _skipCheck;
         private bool _backup;
+        private bool _noQuestion;
 
         private bool _logToFile;
         private string _logFileName;
-        private StringBuilder _log;
+        private readonly StringBuilder _log = new StringBuilder();
 
         private SearchOption _searchOption = SearchOption.AllDirectories;
         private IEnumerable<string> _filePaths;
@@ -53,24 +53,30 @@ namespace FixAvi4cc
 
         public void Run()
         {
-            if (!_canRun)
-                return;
-
-            try
+            if (_canRun)
             {
-                foreach (var filePath in _filePaths)
+                try
                 {
-                    ProcessFile(filePath);
+                    foreach (var filePath in _filePaths)
+                    {
+                        ProcessFile(filePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogLine(ex.ToString());
+                }
+
+                if (_logToFile)
+                {
+                    File.WriteAllText(_logFileName, _log.ToString());
                 }
             }
-            catch (Exception ex)
-            {
-                LogLine(ex.ToString());
-            }
 
-            if (_logToFile)
+            if (!_noQuestion)
             {
-                File.WriteAllText(_logFileName, _log.ToString());
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey();
             }
         }
         
@@ -89,6 +95,7 @@ namespace FixAvi4cc
                 _skipReadOnly = argsList.Remove("-skipReadOnly");
                 _skipCheck = argsList.Remove("-skipCheck");
                 _backup = argsList.Remove("-backup");
+                _noQuestion = argsList.Remove("-noQuestion");
 
                 _searchOption = argsList.Remove("-topDirectoryOnly") ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
 
@@ -127,11 +134,41 @@ namespace FixAvi4cc
 
             if (_filePaths?.Any() != true)
             {
-                LogLine("0 .avi files found to process");
+                LogLine("Found no .avi files to process");
+
+                if (!_noQuestion)
+                {
+                    Console.WriteLine("Press any key to continue...");
+                    Console.ReadKey();
+                }
 
                 return false;
             }
-            
+
+            if (!_noQuestion)
+            {
+                Console.WriteLine("Found .avi files:");
+
+                foreach (var filePath in _filePaths)
+                {
+                    Console.WriteLine(filePath);
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Parameters:");
+                Console.WriteLine($"Skip read-only files: {_skipReadOnly}");
+                Console.WriteLine($"Skip FourCC check: {_skipCheck}");
+                Console.WriteLine($"Backup original file: {_backup}");
+                Console.WriteLine($"Search in top directory only: {_searchOption == SearchOption.TopDirectoryOnly}");
+                Console.WriteLine($"Log to: {_logFileName ?? "console"}");
+                Console.WriteLine();
+                Console.WriteLine($"Continue to process {_filePaths.Count()} .avi files? (y/n)");
+
+                var key = Console.ReadLine()?.Trim().ToLower();
+                if (key != "y")
+                    return false;
+            }
+
             return true;
         }
 
@@ -142,8 +179,9 @@ namespace FixAvi4cc
             Console.WriteLine("-backup\t\t\tBackup original file");
             Console.WriteLine("-skipReadOnly\t\tSkip read-only files");
             Console.WriteLine("-skipCheck\t\tSkip FourCC checking equals 'xvid' or 'divx'");
-            Console.WriteLine("-topDirectoryOnly\tSearch avi files in top directory only, not recursive");
+            Console.WriteLine("-topDirectoryOnly\tSearch avi files in top directory only, not recursive in subdirectories");
             Console.WriteLine("-log logFileName\tLog output to logFileName");
+            Console.WriteLine("-noQuestion\t\tSkip asking for continue");
             Console.WriteLine("dirName1 dirName2...\tPaths to directories where to search .avi files");
             Console.WriteLine("fileName1 fileName2...\tPaths to .avi files");
             Console.WriteLine("-?,-h,-help\t\tThis help output");
