@@ -9,11 +9,24 @@ namespace FixAvi4cc
 {
     public class Fixer
     {
+        /*
+         * So, I started experimenting, and I found out that simply changing codec ID (also known as FourCC)
+         * in the AVI file from XVID (or, less common DIVX or DX50) into FMP4 fixes the problem!
+         * (For videos encoded with the oldest DivX version, the FourCC is DIV3, and has to be changed to MP43).
+         */
+
         private readonly int[] _offsets = {112, 188};
+
         private readonly string _new4Cc = "FMP4";
         private readonly byte[] _new4CcLower;
         private readonly byte[] _new4CcUpper;
         private readonly bool _canRun;
+
+        private readonly string _newDivx4Cc = "MP43";
+        private readonly byte[] _newDivx4CcLower;
+        private readonly byte[] _newDivx4CcUpper;
+
+        private readonly string[] _allowedFourCC = {"xvid", "divx", "div3" };
 
         private bool _skipReadOnly;
         private bool _skipCheck;
@@ -31,6 +44,9 @@ namespace FixAvi4cc
         {
             _new4CcLower = Encoding.ASCII.GetBytes(_new4Cc.ToLower());
             _new4CcUpper = Encoding.ASCII.GetBytes(_new4Cc.ToUpper());
+
+            _newDivx4CcLower = Encoding.ASCII.GetBytes(_newDivx4Cc.ToLower());
+            _newDivx4CcUpper = Encoding.ASCII.GetBytes(_newDivx4Cc.ToUpper());
 
             _canRun = Initialize(args);
         }
@@ -250,27 +266,43 @@ namespace FixAvi4cc
 
                 if (fs.Read(buffer, 0, 4) == 4)
                 {
-                    var codec = Encoding.ASCII.GetString(buffer);
+                    var codec = Encoding.ASCII.GetString(buffer).ToLower();
 
                     LogLine($"Used FourCC: {codec}");
-                    if (!_skipCheck && codec.ToLower() != "xvid" && codec.ToLower() != "divx")
+                    if (!_skipCheck && !_allowedFourCC.Contains(codec))
                     {
-                        LogLine("Not divx/xvid FourCC, skipping");
+                        LogLine("Not divx/xvid/div3 FourCC, skipping");
                         LogLine();
                         return;
                     }
 
+                    var oldDivx = codec == "div3";
+
                     if (_backup)
                         File.Copy(filePath, $"{filePath}.backup");
 
-                    fs.Position = _offsets[0];
-                    fs.Write(_new4CcLower, 0, _new4CcLower.Length);
+                    if (oldDivx)
+                    {
+                        fs.Position = _offsets[0];
+                        fs.Write(_newDivx4CcLower, 0, _newDivx4CcLower.Length);
 
-                    fs.Position = _offsets[1];
-                    fs.Write(_new4CcUpper, 0, _new4CcUpper.Length);
+                        fs.Position = _offsets[1];
+                        fs.Write(_newDivx4CcUpper, 0, _newDivx4CcUpper.Length);
 
-                    LogLine($"Changed FourCC: {_new4Cc}");
-                    LogLine();
+                        LogLine($"Changed FourCC: {_newDivx4Cc}");
+                        LogLine();
+                    }
+                    else
+                    {
+                        fs.Position = _offsets[0];
+                        fs.Write(_new4CcLower, 0, _new4CcLower.Length);
+
+                        fs.Position = _offsets[1];
+                        fs.Write(_new4CcUpper, 0, _new4CcUpper.Length);
+
+                        LogLine($"Changed FourCC: {_new4Cc}");
+                        LogLine();
+                    }
                 }
             }
         }
