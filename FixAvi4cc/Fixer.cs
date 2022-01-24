@@ -127,9 +127,12 @@ namespace FixAvi4cc
                 }
             }
 
-            if (_filePaths?.Any() != true)
+            if (_filePaths == null)
             {
-                _filePaths = GetDirectoryFiles(Directory.GetCurrentDirectory(), "*.avi", _searchOption);
+                var path = Directory.GetCurrentDirectory();
+                LogLine(
+                    $"Searching in \"{path}\"{(_searchOption == SearchOption.AllDirectories ? " and subdirectories" : "")}");
+                _filePaths = GetDirectoryFiles(path, "*.avi", _searchOption);
             }
 
             if (_filePaths?.Any() != true)
@@ -202,11 +205,17 @@ namespace FixAvi4cc
             for (var i = array.Length - 1; i >= 0; i--)
             {
                 var path = array[i];
-                
+
                 if (Directory.Exists(path))
+                {
+                    LogLine(
+                        $"Searching in \"{path}\"{(_searchOption == SearchOption.AllDirectories ? " and subdirectories" : "")}");
                     result.AddRange(GetDirectoryFiles(path, "*.avi", _searchOption));
+                }
                 else if (File.Exists(path) && Path.GetExtension(path).ToLower() == "avi")
+                {
                     result.Add(path);
+                }
                 else
                 {
                     LogLine($"Invalid file/dir path: {path}");
@@ -257,7 +266,7 @@ namespace FixAvi4cc
         /// <param name="patternMatch">Filename pattern match</param>
         /// <param name="searchOption">Search subdirectories or only top level directory for files</param>
         /// <returns>List of files</returns>
-        private static IEnumerable<string> GetDirectoryFiles(string rootPath, string patternMatch, SearchOption searchOption)
+        private IEnumerable<string> GetDirectoryFiles(string rootPath, string patternMatch, SearchOption searchOption)
         {
             var foundFiles = Enumerable.Empty<string>();
 
