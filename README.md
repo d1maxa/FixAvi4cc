@@ -8,8 +8,9 @@ FixAvi4cc.exe -backup -skipReadOnly -skipCheck -topDirectoryOnly -log logFileNam
 -backup                 Backup original file
 -skipReadOnly           Skip read-only files
 -skipCheck              Skip FourCC checking equals 'xvid' or 'divx'
--topDirectoryOnly       Search avi files in top directory only, not recursive
+-topDirectoryOnly       Search avi files in top directory only, not recursive in subdirectories
 -log logFileName        Log output to logFileName
+-noQuestion             Skip asking for continue
 dirName1 dirName2...    Paths to directories where to search .avi files
 fileName1 fileName2...  Paths to .avi files
 -?,-h,-help             This help output
