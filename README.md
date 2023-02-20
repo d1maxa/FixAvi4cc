@@ -1,6 +1,6 @@
 # FixAvi4cc
 ## Tool for fixing avi files with Xvid/Divx codec to play on modern TVs
-For single file you can use [FourCC changer](https://www.fourcc.org/changer/). My tool is for batch processing.
+For single file you can use [FourCC changer](https://sourceforge.net/projects/vsfccchanger/). My tool is for batch processing.
 ### How to use
 ```
 FixAvi4cc.exe [options] dirName1 dirName2 fileName1 fileName2...
