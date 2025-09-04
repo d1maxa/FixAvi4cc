@@ -11,6 +11,7 @@ FixAvi4cc.exe -backup -skipReadOnly -skipCheck -topDirectoryOnly -log logFileNam
 -topDirectoryOnly       Search avi files in top directory only, not recursive in subdirectories
 -log logFileName        Log output to logFileName
 -noQuestion             Skip asking for continue
+-saveCodecs             Save codecs.xml with default values
 dirName1 dirName2...    Paths to directories where to search .avi files
 fileName1 fileName2...  Paths to .avi files
 -?,-h,-help             This help output
