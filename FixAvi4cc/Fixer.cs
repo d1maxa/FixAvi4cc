@@ -16,21 +16,25 @@ namespace FixAvi4cc
 
         private readonly int[] _offsets = {112, 188};
 
-        private readonly string _new4Cc = "FMP4";
-        private readonly byte[] _new4CcLower;
-        private readonly byte[] _new4CcUpper;
+        private const string Default4Cc = "FMP4";
+        private Dictionary<string, string> _codecs = new Dictionary<string, string>()
+        {
+            {"xvid", "FMP4"},
+            {"divx", "FMP4"},
+            {"dx50", "FMP4"},
+            {"div3", "MP43"},
+        };
+        
+        private const string CodecsFileName = "codecs.xml";
+
         private readonly bool _canRun;
-
-        private readonly string _newDivx4Cc = "MP43";
-        private readonly byte[] _newDivx4CcLower;
-        private readonly byte[] _newDivx4CcUpper;
-
-        private readonly string[] _allowedFourCC = {"xvid", "divx", "div3" };
+        private string[] _allowedFourCC => _codecs.Keys.Select(s => s.ToLower()).ToArray();
 
         private bool _skipReadOnly;
         private bool _skipCheck;
         private bool _backup;
         private bool _noQuestion;
+        private bool _saveCodecs;
 
         private bool _logToFile;
         private string _logFileName;
@@ -42,13 +46,12 @@ namespace FixAvi4cc
 
         public Fixer(string[] args)
         {
-            _new4CcLower = Encoding.ASCII.GetBytes(_new4Cc.ToLower());
-            _new4CcUpper = Encoding.ASCII.GetBytes(_new4Cc.ToUpper());
-
-            _newDivx4CcLower = Encoding.ASCII.GetBytes(_newDivx4Cc.ToLower());
-            _newDivx4CcUpper = Encoding.ASCII.GetBytes(_newDivx4Cc.ToUpper());
-
             _canRun = Initialize(args);
+
+            if (_saveCodecs)
+                SaveCodecs();
+
+            ReadCodecs();
         }
 
         public void Run()
@@ -96,6 +99,7 @@ namespace FixAvi4cc
                 _skipCheck = argsList.Remove("-skipCheck");
                 _backup = argsList.Remove("-backup");
                 _noQuestion = argsList.Remove("-noQuestion");
+                _saveCodecs = argsList.Remove("-saveCodecs");
 
                 _searchOption = argsList.Remove("-topDirectoryOnly") ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
 
@@ -157,6 +161,7 @@ namespace FixAvi4cc
                 Console.WriteLine($"Skip FourCC check: {_skipCheck}");
                 Console.WriteLine($"Backup original file: {_backup}");
                 Console.WriteLine($"Search in top directory only: {_searchOption == SearchOption.TopDirectoryOnly}");
+                Console.WriteLine($"Save default codecs.xml: {_saveCodecs}");
                 Console.WriteLine($"Log to: {_logFileName ?? "console"}");
                 Console.WriteLine();
                 Console.WriteLine($"Continue to process {_filePaths.Count()} .avi files? (y/n)");
@@ -169,6 +174,34 @@ namespace FixAvi4cc
             return true;
         }
 
+        private void ReadCodecs()
+        {
+            try
+            {
+                if (File.Exists(CodecsFileName))
+                {
+                    _codecs = XmlDictionaryHelper.Load(CodecsFileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogLine($"Error during reading {CodecsFileName}: {ex.Message}");
+            }
+        }
+
+        private void SaveCodecs()
+        {
+            try
+            {
+                XmlDictionaryHelper.Save(CodecsFileName, _codecs);
+            }
+            catch (Exception ex)
+            {
+                LogLine($"Error during saving {CodecsFileName}: {ex.Message}");
+            }
+        }
+
+
         private void ShowHelp()
         {
             Console.WriteLine("FixAvi4cc.exe [options] dirName1 dirName2 fileName1 fileName2...");
@@ -179,6 +212,7 @@ namespace FixAvi4cc
             Console.WriteLine("-topDirectoryOnly\tSearch avi files in top directory only, not recursive in subdirectories");
             Console.WriteLine("-log logFileName\tLog output to logFileName");
             Console.WriteLine("-noQuestion\t\tSkip asking for continue");
+            Console.WriteLine("-saveCodecs\t\tSave codecs.xml with default values");
             Console.WriteLine("dirName1 dirName2...\tPaths to directories where to search .avi files");
             Console.WriteLine("fileName1 fileName2...\tPaths to .avi files");
             Console.WriteLine("-?,-h,-help\t\tThis help output");
@@ -312,38 +346,28 @@ namespace FixAvi4cc
                     LogLine($"Used FourCC: {codec}");
                     if (!_skipCheck && !_allowedFourCC.Contains(codec))
                     {
-                        LogLine("Not divx/xvid/div3 FourCC, skipping");
+                        LogLine($"Not {string.Join("/", _allowedFourCC)} FourCC, skipping");
                         LogLine();
                         return;
                     }
-
-                    var oldDivx = codec == "div3";
-
+                    
                     if (_backup)
                         File.Copy(filePath, $"{filePath}.backup");
 
-                    if (oldDivx)
-                    {
-                        fs.Position = _offsets[0];
-                        fs.Write(_newDivx4CcLower, 0, _newDivx4CcLower.Length);
+                    if (!_codecs.TryGetValue(codec, out var new4Cc))
+                        new4Cc = Default4Cc;
 
-                        fs.Position = _offsets[1];
-                        fs.Write(_newDivx4CcUpper, 0, _newDivx4CcUpper.Length);
+                    var new4CcLower = Encoding.ASCII.GetBytes(new4Cc.ToLower());
+                    var new4CcUpper = Encoding.ASCII.GetBytes(new4Cc.ToUpper());
 
-                        LogLine($"Changed FourCC: {_newDivx4Cc}");
-                        LogLine();
-                    }
-                    else
-                    {
-                        fs.Position = _offsets[0];
-                        fs.Write(_new4CcLower, 0, _new4CcLower.Length);
+                    fs.Position = _offsets[0];
+                    fs.Write(new4CcLower, 0, new4CcLower.Length);
 
-                        fs.Position = _offsets[1];
-                        fs.Write(_new4CcUpper, 0, _new4CcUpper.Length);
+                    fs.Position = _offsets[1];
+                    fs.Write(new4CcUpper, 0, new4CcUpper.Length);
 
-                        LogLine($"Changed FourCC: {_new4Cc}");
-                        LogLine();
-                    }
+                    LogLine($"Changed FourCC: {new4Cc}");
+                    LogLine();
                 }
             }
         }
